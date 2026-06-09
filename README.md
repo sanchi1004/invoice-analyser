@@ -72,7 +72,3 @@ rmdir /s .venv
 ## Notes
 - Add `.venv/` to `.gitignore` so the environment isn't committed.  
 - If you need exact OS-level parity (system packages, libraries), consider Docker instead.
-
-## Contributing
-Open an issue or submit a PR. Describe repro steps and include sample invoices when possible.
-
