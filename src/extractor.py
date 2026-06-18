@@ -1,6 +1,5 @@
 import re
 
-
 def get_match(pattern, text):
     match = re.search(
         pattern,
