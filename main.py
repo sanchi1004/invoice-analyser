@@ -5,7 +5,6 @@ from src.ocr_engine import extract_text
 from src.extractor import extract_invoice_data
 from src.excel_exporter import export_to_excel
 from src.pdf_text_extractor import extract_pdf_text
-
 POPPLER_PATH = r"C:\poppler-26.02.0\Library\bin"
 
 all_invoices = []
@@ -23,7 +22,6 @@ for file in os.listdir("invoices"):
         if len(full_text.strip()) < 100:
 
             print("No text found. Using OCR...")
-
             pages = pdf_to_images(
                 pdf_path,
                 poppler_path=POPPLER_PATH
