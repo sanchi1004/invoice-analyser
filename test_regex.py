@@ -1,20 +1,9 @@
 import re
-import os
 
 def clean_text(text):
     return text.replace('\r', '')
 
-def get_company(text):
-    upper = text.upper()
-    if "RELIANCE INDUSTRIES LIMITED" in upper:
-        return "Reliance Industries Limited"
-    if "BP EXPLORATION" in upper:
-        return "BP Exploration (Alpha) Limited"
-    if "GAIL (INDIA) LTD" in upper:
-        return "GAIL (India) Ltd"
-    return "Unknown"
-
-def extract_reliance_bp(text, file_path):
+def extract_reliance_bp(text):
     is_bp = "BP Exploration" in text
     company = "BP Exploration (Alpha) Limited" if is_bp else "Reliance Industries Limited"
     
@@ -61,18 +50,15 @@ def extract_reliance_bp(text, file_path):
         "Quantity": quantity.group(1) if quantity else "",
         "Currency": currency.group(1) if currency else "",
         "Delivery_and_Billing_Period": del_period.group(1).strip() if del_period else "",
-        "Billing Address": re.sub(r'\s+', ' ', buyer_address).strip(),
-        "Name": re.sub(r'\s+', ' ', name).strip(),
+        "Billing Address": re.sub(r'\s+', ' ', buyer_address),
+        "Name": re.sub(r'\s+', ' ', name),
         "PAN Number": (seller_pan.group(1) if seller_pan else "") + " / " + (buyer_pan.group(1) if buyer_pan else ""),
         "Supplier GST": supplier_gst.group(1) if supplier_gst else "",
         "Buyer GST": buyer_gst.group(1) if buyer_gst else "",
-        "Contract Number": "",
-        "Result": "Success",
-        "File Path": file_path,
-        "File Name": os.path.basename(file_path)
+        "Contract Number": ""
     }
 
-def extract_gail(text, file_path):
+def extract_gail(text):
     invoice_date = re.search(r"BILLING DATE\s*:\s*([\d\.]+)", text)
     invoice_number = re.search(r"SERIAL NO\.\s*([A-Z0-9]+)", text)
     ref_no = re.search(r"REF1\s*([A-Z0-9]+)", text)
@@ -111,53 +97,20 @@ def extract_gail(text, file_path):
         "Quantity": quantity.group(1) if quantity else "",
         "Currency": "INR",
         "Delivery_and_Billing_Period": del_period.group(1).strip() if del_period else "",
-        "Billing Address": re.sub(r'\s+', ' ', billing_address).strip(),
+        "Billing Address": re.sub(r'\s+', ' ', billing_address),
         "Name": name,
         "PAN Number": (pan_no.group(1) if pan_no else "") + " / " + (pan_no.group(2) if pan_no else ""),
         "Supplier GST": gst_no.group(1) if gst_no else "",
         "Buyer GST": gst_no.group(2) if gst_no else "",
-        "Contract Number": contract_no.group(1) if contract_no else "",
-        "Result": "Success",
-        "File Path": file_path,
-        "File Name": os.path.basename(file_path)
+        "Contract Number": contract_no.group(1) if contract_no else ""
     }
 
-def extract_generic(text, file_path):
-    invoice_date = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4})", text)
-    invoice_number = re.search(r"Invoice.*?([A-Z0-9\-]{6,})", text)
-    invoice_total = re.search(r"(?:Grand Total|Invoice Total).*?([\d,]+\.\d+)", text)
-    
-    return {
-        "Company Name": get_company(text),
-        "Invoice Date": invoice_date.group(1) if invoice_date else "",
-        "Invoice Number": invoice_number.group(1) if invoice_number else "",
-        "Due Date": "",
-        "Reference No": "",
-        "Item Total": "",
-        "CST Value": "",
-        "Invoice Total": invoice_total.group(1) if invoice_total else "",
-        "Rate": "",
-        "Quantity": "",
-        "Currency": "",
-        "Delivery_and_Billing_Period": "",
-        "Billing Address": "",
-        "Name": "",
-        "PAN Number": "",
-        "Supplier GST": "",
-        "Buyer GST": "",
-        "Contract Number": "",
-        "Result": "Success",
-        "File Path": file_path,
-        "File Name": os.path.basename(file_path)
-    }
+for f in ["0000050516_3015006421.PDF.txt", "ctr-1246_16022026_28022026_3251203857_ril_ds.pdf.txt", "ctr-1246_16022026_28022026_3255203857_bp_ds.pdf.txt"]:
+    with open(f, 'r', encoding='utf-8') as file:
+        text = clean_text(file.read())
+        print(f"--- {f} ---")
+        if "GAIL" in text:
+            print(extract_gail(text))
+        else:
+            print(extract_reliance_bp(text))
 
-def extract_invoice_data(text, file_path):
-    text = clean_text(text)
-    company = get_company(text)
-
-    if "Reliance" in company or "BP" in company:
-        return extract_reliance_bp(text, file_path)
-    elif "GAIL" in company:
-        return extract_gail(text, file_path)
-    else:
-        return extract_generic(text, file_path)

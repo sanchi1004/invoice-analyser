@@ -1,0 +1,81 @@
+ 
+Amount
+1,923,456.14
+19,23,456.14
+38,469.12
+1,961,925.26
+Rate
+9.720
+Due date for payment : 07.03.2026
+Grand Total
+1,961,925.26
+Total Invoice Value in USD One Million Nine Hundred Sixty-One Thousand Nine Hundred Twenty-Five And Twenty-Six Cents
+Only
+Central Excise Tariff Heading 2711 21 00 (Natural Gas) - Excise Duty "NIL"( Exempted from Central Excise Duty vide
+Notification No 11/2017-CE (Sr.No. 9) dt. 30.6.2017)
+Amount to be paid in Indian Rupees by converting USD to Indian Rupees by applying the Exchange Rate as per the provisions of GSPA.
+Encl : For gas dispatch summary refer Annexure: 2020856
+Remarks (if any):
+The buyer has confirmed Applicability & Deduction of  TDS u/s 194Q. The  Buyer to apply normal rate of @0.1%, as we are not falling under the category of
+specified persons u/s 206AB.
+TCS u/s 206C(1H) shall not be collected on payment of this invoice, basis buyer declaration.
+Reliance Industries Limited
+Onshore Terminal Gadimoga Village ,
+Talleravu Mandal,Dist: East Godavari .
+Andhra Pradesh - 533463
+CST No.  : 37970111130 W.E.F. 02.06.2014
+TIN No.  : 37970111130 W.E.F. 02.06.2014
+Seller PAN : AAACR5055K ,GST No: 37AAACR5055K2Z5
+                                        Invoice
+Invoice No. : 3251203857
+Receiver's Signature
+Name 
+For Reliance Industries Limited 
+Authorised Signatory 
+Regd: Reliance Industries Limited ,Maker Chambers IV ,3rd Floor, 222 ,Nariman Point , Mumbai-400021 ,INDIA .
+CIN: L17110MH1973PLC019786 Website: www.ril.com Tel. No: +91 22 22785000
+E & OE
+ 
+Delivery and Billing Period : 16.02.2026 to 28.02.2026  
+ Consignee Code & Name : 3000150045
+ INDIAN OIL CORPORATION LIMITED
+ BARAUNI REFINERY
+ Reference No.                  : CTR-1246
+ 
+ Consignee Address          :
+ INDIAN OIL CORPORATION LTD ,BEGUSARAI, BIHAR
+,BARAU
+ 851114 ,Bihar
+ CST No. : 10010116179 WEF 01.04.2005
+ TIN No. : 10360215078 WEF 01.04.2005
+ Buyer PAN : AAACI1681G ,GST No. : 10AAACI1681G1Z4
+Invoice Date                  : 28.02.2026
+Buyer's Code & Name  : 4000110827
+INDIAN OIL CORPORATION LIMITED
+BARAUNI REFINERY
+Buyer's Address             :
+INDIAN OIL CORPORATION LTDBEGUSARAI, BIHAR
+BARAUNI ,851114 .
+Bihar .
+CST No.      : 10010116179 WEF 01.04.2005 .
+TIN No.       : 10360215078 WEF 01.04.2005 .
+Check Digit : 0010019634 .GST No. : 10AAACI1681G1Z4
+Sr.No.
+1
+2
+3
+4
+Item / Billing Description
+Natural Gas
+Sub Total
+CST against C Form@2.00%
+Total Invoice Value
+Quantity
+in MMBTU (GCV)
+1,97,886.43
+Currency
+USD
+Digitally signed by Rinku Punit Bavad
+Date: 2026.03.02 11:05:20 +05:30
+Signature Not Verified
+

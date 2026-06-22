@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 import shutil
 import os
+import traceback
 
 from src.batch_processor import process_folder
 from src.excel_exporter import export_to_excel
@@ -95,7 +96,10 @@ async def upload_folder(
             "uploaded": uploaded
         }
 
+
     except Exception as e:
+
+        traceback.print_exc()
 
         raise HTTPException(
             status_code=500,
@@ -111,13 +115,15 @@ def process_invoices():
 
     try:
 
-        invoices = process_folder(
-            INVOICE_FOLDER
-        )
+        print("Starting invoice processing...")
 
-        export_to_excel(
-            invoices
-        )
+        invoices = process_folder(INVOICE_FOLDER)
+
+        print(f"Processed {len(invoices)} invoices")
+
+        export_to_excel(invoices)
+
+        print("Excel exported successfully")
 
         return {
             "success": True,
@@ -127,11 +133,16 @@ def process_invoices():
 
     except Exception as e:
 
+        import traceback
+
+        print("\n\n========== ERROR ==========")
+        traceback.print_exc()
+        print("===========================\n\n")
+
         raise HTTPException(
             status_code=500,
             detail=str(e)
         )
-
 # =====================================================
 # DOWNLOAD EXCEL
 # =====================================================
