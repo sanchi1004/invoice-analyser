@@ -1066,11 +1066,11 @@
     }
 
     function handleFilesSelected(files) {
-        selectedFilesToUpload = [];
         const fileListContainer = document.getElementById("upload-file-list");
         fileListContainer.innerHTML = "";
 
-        const pdfFiles = Array.from(files).filter(f => f.name.toLowerCase().endswith('.pdf') || f.type === 'application/pdf');
+        const pdfFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf');
+        const warnings = [];
 
         if (pdfFiles.length === 0) {
             document.getElementById("upload-status").className = "alert alert-warning";
@@ -1079,7 +1079,15 @@
             return;
         }
 
+        selectedFilesToUpload = [];
+        const seenNames = new Set();
+
         pdfFiles.forEach(file => {
+            if (seenNames.has(file.name)) {
+                warnings.push(`Skipped duplicate selected file: ${file.name}`);
+                return;
+            }
+            seenNames.add(file.name);
             selectedFilesToUpload.push(file);
             const size = (file.size / 1024 / 1024).toFixed(2);
             const item = document.createElement("div");
@@ -1095,8 +1103,16 @@
             fileListContainer.appendChild(item);
         });
 
+        if (selectedFilesToUpload.length === 0) {
+            document.getElementById("upload-status").className = "alert alert-warning";
+            document.getElementById("upload-status").innerText = "No unique PDF files selected.";
+            document.getElementById("process-btn").disabled = true;
+            return;
+        }
+
+        const statusText = `${selectedFilesToUpload.length} PDF invoices ready for upload.`;
         document.getElementById("upload-status").className = "alert alert-success";
-        document.getElementById("upload-status").innerText = `${selectedFilesToUpload.length} PDF invoices ready for upload.`;
+        document.getElementById("upload-status").innerText = warnings.length ? `${statusText} ${warnings.join(' ')}` : statusText;
         document.getElementById("process-btn").disabled = false;
     }
 
@@ -1125,7 +1141,10 @@
                 body: formData
             });
 
-            if (!uploadRes.ok) throw new Error("Upload failed");
+            if (!uploadRes.ok) {
+                const errorText = await uploadRes.text();
+                throw new Error(`Upload failed: ${errorText}`);
+            }
             const uploadResult = await uploadRes.json();
 
             setStepCompleted('step-upload');
@@ -1139,10 +1158,19 @@
                 method: "POST"
             });
 
-            if (!processRes.ok) throw new Error("Processing failed");
+            if (!processRes.ok) {
+                const errorText = await processRes.text();
+                throw new Error(`Processing failed: ${errorText}`);
+            }
             const processResult = await processRes.json();
 
             setStepCompleted('step-process');
+            
+            // If duplicates were found, show an alert to the user
+            if (processResult.duplicates && processResult.duplicates.length > 0) {
+                const duplicateNames = processResult.duplicates.map(d => escapeHTML(d)).join(', ');
+                showToast(`Some PDFs were skipped because invoice data already exists: ${duplicateNames}`, "warning");
+            }
 
             // Step 3: Saving Database
             setStepActive('step-db');
@@ -1152,10 +1180,20 @@
             await new Promise(r => setTimeout(r, 1200)); // Visual spacing
             setStepCompleted('step-db');
 
-            document.getElementById("upload-status").className = "alert alert-success";
-            document.getElementById("upload-status").innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Successfully processed ${processResult.processed} invoices! Database and Excel synchronized.`;
-            
-            showToast(`Processed ${processResult.processed} invoices!`);
+            const duplicateCount = processResult.duplicates ? processResult.duplicates.length : 0;
+            if (processResult.processed > 0) {
+                document.getElementById("upload-status").className = "alert alert-success";
+                document.getElementById("upload-status").innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Successfully processed ${processResult.processed} new invoice(s). Database and Excel synchronized.`;
+                showToast(`Processed ${processResult.processed} invoices!`);
+            } else if (duplicateCount > 0) {
+                document.getElementById("upload-status").className = "alert alert-warning";
+                document.getElementById("upload-status").innerHTML = `<i class="fa-solid fa-exclamation-circle me-1"></i> No new invoices were added. ${duplicateCount} uploaded file(s) already exist in the database. Existing records were exported to Excel.`;
+                showToast(`No new invoices added; ${duplicateCount} duplicates skipped.`, "warning");
+            } else {
+                document.getElementById("upload-status").className = "alert alert-warning";
+                document.getElementById("upload-status").innerText = "No invoices were processed. Please check the uploaded PDF files.";
+                showToast("No invoices were processed. Please check your uploaded PDFs.", "warning");
+            }
             
             selectedFilesToUpload = [];
             document.getElementById("upload-file-list").innerHTML = "";

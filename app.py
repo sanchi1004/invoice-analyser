@@ -9,10 +9,12 @@ import os
 import traceback
 import re
 from collections import defaultdict
+from sqlalchemy import text
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import sqlalchemy.exc
+import sys
 
 from src.batch_processor import process_folder
 from src.excel_exporter import export_to_excel
@@ -32,9 +34,33 @@ from database.crud import (
     search_by_invoice_number, search_by_company, search_by_date
 )
 
-# 4. Create the tables in PostgreSQL
+# 4. Create the tables in PostgreSQL and ensure new columns exist
+
+def ensure_invoice_columns():
+    with engine.connect() as conn:
+        existing_columns = conn.execute(text(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'invoices'"
+        )).fetchall()
+        existing_columns = {row[0] for row in existing_columns}
+
+        for column_name in [
+            'contract_number',
+            'pan_number',
+            'supplier_gst',
+            'buyer_gst',
+        ]:
+            if column_name not in existing_columns:
+                conn.execute(text(
+                    f"ALTER TABLE invoices ADD COLUMN {column_name} VARCHAR"
+                ))
+                print(f"Added missing column: {column_name}")
+
 try:
     Base.metadata.create_all(bind=engine)
+    try:
+        ensure_invoice_columns()
+    except Exception as exc:
+        print(f"Invoice schema update warning: {exc}")
 except Exception as exc:
     print(f"Database initialization skipped: {exc}")
 
@@ -97,6 +123,10 @@ def serialize_invoice(invoice):
         "delivery_period": invoice.delivery_period,
         "item_total": invoice.item_total,
         "quantity": invoice.quantity,
+        "contract_number": invoice.contract_number,
+        "pan_number": invoice.pan_number,
+        "supplier_gst": invoice.supplier_gst,
+        "buyer_gst": invoice.buyer_gst,
         "file_path": invoice.file_path,
         "file_name": invoice.file_name,
         "result": invoice.result,
@@ -236,23 +266,57 @@ async def upload_folder(
 # =====================================================
 
 @app.post("/process-folder")
-def process_invoices():
+def process_invoices(db: Session = Depends(get_db)):
 
     try:
 
         print("Starting invoice processing...")
 
-        invoices = process_folder(INVOICE_FOLDER)
+        result = process_folder(INVOICE_FOLDER)
 
-        print(f"Processed {len(invoices)} invoices")
+        processed = result.get("processed_count", 0)
+        duplicates = result.get("duplicates", [])
 
-        export_to_excel(invoices)
+        print(f"Processed {processed} invoices")
+        if duplicates:
+            print(f"Skipped duplicates: {duplicates}")
+
+        all_db_invoices = get_all_invoices(db)
+        excel_rows = [
+            {
+                "Invoice Date": invoice.invoice_date,
+                "Invoice Number": invoice.invoice_number,
+                "Invoice Total": invoice.invoice_total,
+                "Company Name": invoice.company_name,
+                "Billing Address": invoice.billing_address,
+                "Due Date": invoice.due_date,
+                "Name": invoice.customer_name,
+                "Reference No": invoice.reference_no,
+                "Contract Number": invoice.contract_number,
+                "PAN Number": invoice.pan_number,
+                "Supplier GST": invoice.supplier_gst,
+                "Buyer GST": invoice.buyer_gst,
+                "Rate": invoice.rate,
+                "CST Value": invoice.cst_value,
+                "Currency": invoice.currency,
+                "Delivery_and_Billing_Period": invoice.delivery_period,
+                "Item Total": invoice.item_total,
+                "Quantity": invoice.quantity,
+                "Result": invoice.result,
+                "File Path": invoice.file_path,
+                "File Name": invoice.file_name,
+            }
+            for invoice in all_db_invoices
+        ]
+
+        export_to_excel(excel_rows)
 
         print("Excel exported successfully")
 
         return {
             "success": True,
-            "processed": len(invoices),
+            "processed": processed,
+            "duplicates": duplicates,
             "download_url": "/download-excel"
         }
 
@@ -298,16 +362,18 @@ def download_excel():
 
 @app.exception_handler(sqlalchemy.exc.OperationalError)
 def db_operational_error_handler(request: Request, exc: sqlalchemy.exc.OperationalError):
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"detail": "Database connection failure"}
+        content={"detail": f"Database connection failure: {str(exc)}"}
     )
 
 @app.exception_handler(sqlalchemy.exc.SQLAlchemyError)
 def db_sqlalchemy_error_handler(request: Request, exc: sqlalchemy.exc.SQLAlchemyError):
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"detail": "Database error occurred"}
+        content={"detail": f"Database error occurred: {str(exc)}"}
     )
 
 # =====================================================
@@ -350,6 +416,10 @@ class InvoiceUpdate(BaseModel):
     delivery_period: str = None
     item_total: str = None
     quantity: str = None
+    contract_number: str = None
+    pan_number: str = None
+    supplier_gst: str = None
+    buyer_gst: str = None
     file_path: str = None
     file_name: str = None
     result: str = None

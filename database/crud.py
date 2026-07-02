@@ -20,7 +20,12 @@ def save_invoice(data: dict):
                 Invoice.company_name == company_name
             ).first()
             if existing:
-                return "Invoice already exists"
+                return {
+                    "status": "duplicate",
+                    "message": "Invoice already exists",
+                    "invoice_number": invoice_number,
+                    "company_name": company_name
+                }
 
         # Create Invoice record mapping standard and fallback keys
         invoice = Invoice(
@@ -38,6 +43,10 @@ def save_invoice(data: dict):
             delivery_period=data.get("Delivery_and_Billing_Period") or data.get("Delivery Period") or "",
             item_total=data.get("Item Total") or "",
             quantity=data.get("Quantity") or "",
+            contract_number=data.get("Contract Number") or "",
+            pan_number=data.get("PAN Number") or "",
+            supplier_gst=data.get("Supplier GST") or "",
+            buyer_gst=data.get("Buyer GST") or "",
             file_path=data.get("File Path") or "",
             file_name=data.get("File Name") or "",
             result=data.get("Result") or ""
