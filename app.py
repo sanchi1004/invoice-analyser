@@ -3,10 +3,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from typing import List
+from typing import List, Optional
 import shutil
 import os
 import traceback
+import re
+from collections import defaultdict
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -31,7 +33,10 @@ from database.crud import (
 )
 
 # 4. Create the tables in PostgreSQL
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as exc:
+    print(f"Database initialization skipped: {exc}")
 
 # =====================================================
 # CONFIG
@@ -65,12 +70,110 @@ app.add_middleware(
 )
 
 # =====================================================
+# DATABASE DEPENDENCY & UTILS
+# =====================================================
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def serialize_invoice(invoice):
+    return {
+        "id": invoice.id,
+        "invoice_number": invoice.invoice_number,
+        "invoice_date": invoice.invoice_date,
+        "invoice_total": invoice.invoice_total,
+        "company_name": invoice.company_name,
+        "billing_address": invoice.billing_address,
+        "due_date": invoice.due_date,
+        "customer_name": invoice.customer_name,
+        "reference_no": invoice.reference_no,
+        "rate": invoice.rate,
+        "cst_value": invoice.cst_value,
+        "currency": invoice.currency,
+        "delivery_period": invoice.delivery_period,
+        "item_total": invoice.item_total,
+        "quantity": invoice.quantity,
+        "file_path": invoice.file_path,
+        "file_name": invoice.file_name,
+        "result": invoice.result,
+        "created_at": invoice.created_at.isoformat() if invoice.created_at else None
+    }
+
+# =====================================================
 # HOME PAGE
 # =====================================================
 
 @app.get("/")
 def root():
     return FileResponse("templates/index.html")
+
+
+def parse_amount(value) -> float:
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = str(value).strip()
+    if not text:
+        return 0.0
+
+    cleaned = re.sub(r"[^\d.-]", "", text)
+    if not cleaned or cleaned in {"-", "."}:
+        return 0.0
+
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
+
+
+@app.get("/analytics/summary")
+def analytics_summary(company: Optional[str] = None, db: Session = Depends(get_db)):
+    try:
+        invoices = get_all_invoices(db)
+    except Exception as exc:
+        print(f"Analytics fetch failed: {exc}")
+        invoices = []
+
+    company_filter = (company or "").strip().lower()
+    if company_filter:
+        invoices = [invoice for invoice in invoices if company_filter in (invoice.company_name or "").lower()]
+
+    totals = defaultdict(lambda: {"total": 0.0, "count": 0, "latest_invoice": None})
+
+    for invoice in invoices:
+        company_name = invoice.company_name or "Unknown Company"
+        amount = parse_amount(invoice.invoice_total)
+        entry = totals[company_name]
+        entry["total"] += amount
+        entry["count"] += 1
+        if entry["latest_invoice"] is None or (invoice.created_at and (entry["latest_invoice"].get("created_at") is None or invoice.created_at > entry["latest_invoice"].get("created_at"))):
+            entry["latest_invoice"] = {
+                "invoice_number": invoice.invoice_number or "-",
+                "invoice_total": invoice.invoice_total or "-",
+                "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
+            }
+
+    companies = []
+    for company_name, entry in sorted(totals.items(), key=lambda item: item[1]["total"], reverse=True):
+        companies.append({
+            "company_name": company_name,
+            "total": round(entry["total"], 2),
+            "invoice_count": entry["count"],
+            "latest_invoice": entry["latest_invoice"],
+        })
+
+    return {
+        "total_invoices": sum(item["invoice_count"] for item in companies),
+        "total_spend": round(sum(item["total"] for item in companies), 2),
+        "company_count": len(companies),
+        "companies": companies,
+    }
 
 # =====================================================
 # HEALTH
@@ -187,39 +290,7 @@ def download_excel():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# =====================================================
-# DATABASE DEPENDENCY & UTILS
-# =====================================================
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def serialize_invoice(invoice):
-    return {
-        "id": invoice.id,
-        "invoice_number": invoice.invoice_number,
-        "invoice_date": invoice.invoice_date,
-        "invoice_total": invoice.invoice_total,
-        "company_name": invoice.company_name,
-        "billing_address": invoice.billing_address,
-        "due_date": invoice.due_date,
-        "customer_name": invoice.customer_name,
-        "reference_no": invoice.reference_no,
-        "rate": invoice.rate,
-        "cst_value": invoice.cst_value,
-        "currency": invoice.currency,
-        "delivery_period": invoice.delivery_period,
-        "item_total": invoice.item_total,
-        "quantity": invoice.quantity,
-        "file_path": invoice.file_path,
-        "file_name": invoice.file_name,
-        "result": invoice.result,
-        "created_at": invoice.created_at.isoformat() if invoice.created_at else None
-    }
+# Database dependencies and utilities moved to the top of the module.
 
 # =====================================================
 # EXCEPTION HANDLERS
