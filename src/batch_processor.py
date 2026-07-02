@@ -2,6 +2,7 @@ import os
 
 from src.pdf_text_extractor import extract_pdf_text
 from src.extractor import extract_invoice_data
+from database.crud import save_invoice
 
 
 def process_folder(folder_path):
@@ -32,6 +33,10 @@ def process_folder(folder_path):
                 text,
                 pdf_path
             )
+
+            # Save the invoice to PostgreSQL using SQLAlchemy
+            db_res = save_invoice(invoice)
+            print(f"Database save result for {filename}: {db_res}")
 
             invoices.append(invoice)
 
